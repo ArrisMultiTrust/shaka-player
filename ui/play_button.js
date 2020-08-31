@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -6,6 +7,8 @@
 
 goog.provide('shaka.ui.PlayButton');
 
+goog.require('shaka.ads.AdManager');
+goog.require('shaka.ui.Constants');
 goog.require('shaka.ui.Element');
 goog.require('shaka.ui.Locales');
 goog.require('shaka.ui.Localization');

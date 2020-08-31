@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,6 +8,7 @@
 goog.provide('shaka.ui.OverflowMenu');
 
 goog.require('goog.asserts');
+goog.require('shaka.ads.AdManager');
 goog.require('shaka.log');
 goog.require('shaka.ui.Constants');
 goog.require('shaka.ui.Controls');
@@ -16,6 +18,7 @@ goog.require('shaka.ui.Locales');
 goog.require('shaka.ui.Localization');
 goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
+goog.require('shaka.util.Iterables');
 
 
 /**
@@ -166,7 +169,7 @@ shaka.ui.OverflowMenu = class extends shaka.ui.Element {
     this.overflowMenuButton_ = shaka.util.Dom.createButton();
     this.overflowMenuButton_.classList.add('shaka-overflow-menu-button');
     this.overflowMenuButton_.classList.add('shaka-no-propagation');
-    this.overflowMenuButton_.classList.add('material-icons');
+    this.overflowMenuButton_.classList.add('material-icons-round');
     this.overflowMenuButton_.textContent =
       shaka.ui.Enums.MaterialDesignIcons.OPEN_OVERFLOW;
     this.parent.appendChild(this.overflowMenuButton_);

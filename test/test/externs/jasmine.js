@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -492,23 +493,20 @@ jasmine.Env = function() {};
 
 
 /**
- * @param {jasmine.Spec} spec
- * @return {boolean}
+ * @typedef {{
+ *   random: (boolean|undefined),
+ *   seed: (string|undefined),
+ *   specFilter: (function(jasmine.Spec):boolean|undefined)
+ * }}
  */
-jasmine.Env.prototype.specFilter = function(spec) {};
+jasmine.Configuration;
 
 
-/**
- * @param {boolean} random
- */
-jasmine.Env.prototype.randomizeTests = function(random) {};
+/** @param {jasmine.Configuration} config */
+jasmine.Env.prototype.configure = function(config) {};
 
 
-/**
- * @param {string} seed
- * @return {?string}
- */
-jasmine.Env.prototype.seed = function(seed) {};
+jasmine.Env.prototype.execute = function() {};
 
 
 /** @return {!jasmine.Env} */
@@ -666,6 +664,7 @@ jasmine.matchersUtil = {};
 /**
  * @param {*} first
  * @param {*} second
+ * @param {*} customEqualityTesters
  * @return {boolean}
  */
-jasmine.matchersUtil.equals = function(first, second) {};
+jasmine.matchersUtil.equals = function(first, second, customEqualityTesters) {};

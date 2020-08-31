@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -379,8 +380,8 @@ shaka.test.FakeClosedCaptionParser = class {
   }
 
   /** @override */
-  parseFrom(data, onCaptions) {
-    return shaka.test.Util.invokeSpy(this.parseFromSpy, data, onCaptions);
+  parseFrom(data) {
+    return shaka.test.Util.invokeSpy(this.parseFromSpy, data);
   }
 
   /** @override */

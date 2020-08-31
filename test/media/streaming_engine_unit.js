@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -322,7 +323,17 @@ describe('StreamingEngine', () => {
           expect(position).toBeGreaterThan(-1);
           expect((periodIndex == 0 && position <= segmentsInFirstPeriod) ||
                  (periodIndex == 1 && position <= segmentsInSecondPeriod));
-          return segmentData[type].segments[position];
+          const segment = segmentData[type].segments[position];
+
+          const startTime = segmentData[type].segmentStartTimes[position];
+          const endTime = startTime + segmentData[type].segmentDuration;
+          if (endTime < segmentAvailability.start ||
+              startTime > segmentAvailability.end) {
+            // Return null if the segment is out of the segment availability
+            // window.
+            return null;
+          }
+          return segment;
         },
         /* delays= */ netEngineDelays);
   }
@@ -542,6 +553,20 @@ describe('StreamingEngine', () => {
           netEngine.expectNoRequest('1_text_3', segmentType);
         }
       });
+    });
+
+    it('sets the current text stream to null', async () => {
+      createStreamingEngine();
+
+      streamingEngine.switchVariant(variant);
+      streamingEngine.switchTextStream(textStream);
+      expect(streamingEngine.getCurrentTextStream()).not.toBe(null);
+
+      await streamingEngine.start();
+      playing = true;
+
+      streamingEngine.unloadTextStream();
+      expect(streamingEngine.getCurrentTextStream()).toBe(null);
     });
   });
 
@@ -773,6 +798,7 @@ describe('StreamingEngine', () => {
     let sameAudioVariant;
     let sameVideoVariant;
     let initialTextStream;
+    let newTextStream;
 
     beforeEach(() => {
       // Set up a manifest with multiple variants and a text stream.
@@ -800,12 +826,16 @@ describe('StreamingEngine', () => {
         manifest.addTextStream(20, (stream) => {
           stream.useSegmentTemplate('text-20-%d.mp4', 10);
         });
+        manifest.addTextStream(21, (stream) => {
+          stream.useSegmentTemplate('text-21-%d.mp4', 10);
+        });
       });
 
       initialVariant = manifest.variants[0];
       sameAudioVariant = manifest.variants[1];
       sameVideoVariant = manifest.variants[2];
       initialTextStream = manifest.textStreams[0];
+      newTextStream = manifest.textStreams[1];
 
       // For these tests, we don't care about specific data appended.
       // Just return any old ArrayBuffer for any requested segment.
@@ -873,6 +903,17 @@ describe('StreamingEngine', () => {
       streamingEngine.switchTextStream(initialTextStream);
       await Util.fakeEventLoop(1);
       expect(mediaSourceEngine.clear).not.toHaveBeenCalled();
+    });
+
+    it('will not reset caption parser when text streams change', async () => {
+      await streamingEngine.start();
+      playing = true;
+
+      mediaSourceEngine.clear.calls.reset();
+      streamingEngine.switchTextStream(newTextStream);
+      await Util.fakeEventLoop(1);
+      expect(mediaSourceEngine.clear).toHaveBeenCalled();
+      expect(mediaSourceEngine.resetCaptionParser).not.toHaveBeenCalled();
     });
   });
 
@@ -1087,6 +1128,8 @@ describe('StreamingEngine', () => {
         presentationTimeInSeconds -= 20;
         expect(presentationTimeInSeconds).toBeLessThan(20);
         streamingEngine.seeked();
+
+        expect(mediaSourceEngine.resetCaptionParser).toHaveBeenCalled();
 
         onTick.and.callFake(() => {
           // Verify that all buffers have been cleared.
@@ -2950,6 +2993,48 @@ describe('StreamingEngine', () => {
     // Because we never switched to this stream, it was never set up at any time
     // during this simulated playback.
     expect(alternateVideoStream.createSegmentIndex).not.toHaveBeenCalled();
+  });
+
+  describe('destroy', () => {
+    it('aborts pending network operations', async () => {
+      setupVod();
+      mediaSourceEngine = new shaka.test.FakeMediaSourceEngine(segmentData);
+
+      // Track the incoming request and whether it was aborted.
+      let isRequested = false;
+      let isAborted = false;
+
+      netEngine.request.and.callFake((requestType, request) => {
+        isRequested = true;
+
+        const abortOp = () => {
+          isAborted = true;
+          return Promise.resolve();
+        };
+
+        // This will never complete, but can be aborted.
+        const hungPromise = new Promise(() => {});
+        return new shaka.util.AbortableOperation(hungPromise, abortOp);
+      });
+
+      // General setup.
+      createStreamingEngine();
+      streamingEngine.switchVariant(variant);
+      await streamingEngine.start();
+      playing = true;
+
+      // Simulate time passing.
+      await Util.fakeEventLoop(1);
+
+      // By now the request should have fired.
+      expect(isRequested).toBe(true);
+
+      // Destroy StreamingEngine.
+      await streamingEngine.destroy();
+
+      // The request should have been aborted.
+      expect(isAborted).toBe(true);
+    });
   });
 
   /**

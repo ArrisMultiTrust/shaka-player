@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +8,11 @@
 goog.provide('shaka.ui.LanguageUtils');
 
 goog.require('mozilla.LanguageMapping');
+goog.require('shaka.log');
+goog.require('shaka.ui.Locales');
+goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
+goog.require('shaka.util.LanguageUtils');
 
 
 shaka.ui.LanguageUtils = class {

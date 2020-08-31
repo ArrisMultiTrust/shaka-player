@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -14,6 +15,10 @@ goog.require('shaka.abr.SimpleAbrManager');
 goog.require('shaka.ads.AdManager');
 goog.require('shaka.cast.CastProxy');
 goog.require('shaka.cast.CastReceiver');
+goog.require('shaka.cea.CeaDecoder');
+goog.require('shaka.cea.Cea608DataChannel');
+goog.require('shaka.cea.Cea608Memory');
+goog.require('shaka.cea.Mp4CeaParser');
 goog.require('shaka.dash.DashParser');
 goog.require('shaka.hls.HlsParser');
 goog.require('shaka.log');
@@ -37,6 +42,7 @@ goog.require('shaka.polyfill.IndexedDB');
 goog.require('shaka.polyfill.InputEvent');
 goog.require('shaka.polyfill.MathRound');
 goog.require('shaka.polyfill.MediaSource');
+goog.require('shaka.polyfill.Orientation');
 goog.require('shaka.polyfill.PatchedMediaKeysApple');
 goog.require('shaka.polyfill.PatchedMediaKeysMs');
 goog.require('shaka.polyfill.PatchedMediaKeysNop');
@@ -60,6 +66,7 @@ goog.require('shaka.ui.OverflowMenu');
 goog.require('shaka.ui.AudioLanguageSelection');
 goog.require('shaka.ui.AdCounter');
 goog.require('shaka.ui.AdPosition');
+goog.require('shaka.ui.AirPlayButton');
 goog.require('shaka.ui.BigPlayButton');
 goog.require('shaka.ui.CastButton');
 goog.require('shaka.ui.Element');

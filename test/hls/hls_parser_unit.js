@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -21,6 +22,8 @@ describe('HlsParser', () => {
   let fakeNetEngine;
   /** @type {!shaka.hls.HlsParser} */
   let parser;
+  /** @type {!jasmine.Spy} */
+  let onEventSpy;
   /** @type {shaka.extern.ManifestParser.PlayerInterface} */
   let playerInterface;
   /** @type {shaka.extern.ManifestConfiguration} */
@@ -76,12 +79,15 @@ describe('HlsParser', () => {
     fakeNetEngine = new shaka.test.FakeNetworkingEngine();
 
     config = shaka.util.PlayerConfiguration.createDefault().manifest;
+    onEventSpy = jasmine.createSpy('onEvent');
     playerInterface = {
       filter: () => Promise.resolve(),
+      makeTextStreamsForClosedCaptions: (manifest) => {},
       networkingEngine: fakeNetEngine,
       onError: fail,
-      onEvent: fail,
+      onEvent: shaka.test.Util.spyFunc(onEventSpy),
       onTimelineRegionAdded: fail,
+      isLowLatencyMode: () => false,
     };
 
     parser = new shaka.hls.HlsParser();
@@ -1717,11 +1723,14 @@ describe('HlsParser', () => {
     const initDataBase64 =
         'dGhpcyBpbml0IGRhdGEgY29udGFpbnMgaGlkZGVuIHNlY3JldHMhISE=';
 
+    const keyId = 'abc123';
+
     const media = [
       '#EXTM3U\n',
       '#EXT-X-TARGETDURATION:6\n',
       '#EXT-X-PLAYLIST-TYPE:VOD\n',
       '#EXT-X-KEY:METHOD=SAMPLE-AES-CTR,',
+      'KEYID=0X' + keyId + ',',
       'KEYFORMAT="urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed",',
       'URI="data:text/plain;base64,',
       initDataBase64, '",\n',
@@ -1737,6 +1746,46 @@ describe('HlsParser', () => {
         variant.addPartialStream(ContentType.VIDEO, (stream) => {
           stream.encrypted = true;
           stream.addDrmInfo('com.widevine.alpha', (drmInfo) => {
+            drmInfo.addCencInitData(initDataBase64);
+            drmInfo.keyIds.add(keyId);
+          });
+        });
+      });
+    });
+
+    await testHlsParser(master, media, manifest);
+  });
+
+  it('constructs DrmInfo for PlayReady', async () => {
+    const master = [
+      '#EXTM3U\n',
+      '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="avc1",',
+      'RESOLUTION=960x540,FRAME-RATE=60\n',
+      'video\n',
+    ].join('');
+
+    const initDataBase64 =
+        'AAAAKXBzc2gAAAAAmgTweZhAQoarkuZb4IhflQAAAAlQbGF5cmVhZHk=';
+
+    const media = [
+      '#EXTM3U\n',
+      '#EXT-X-TARGETDURATION:6\n',
+      '#EXT-X-PLAYLIST-TYPE:VOD\n',
+      '#EXT-X-KEY:METHOD=SAMPLE-AES-CTR,',
+      'KEYFORMAT="com.microsoft.playready",',
+      'URI="data:text/plain;base64,UGxheXJlYWR5",\n',
+      '#EXT-X-MAP:URI="init.mp4"\n',
+      '#EXTINF:5,\n',
+      '#EXT-X-BYTERANGE:121090@616\n',
+      'main.mp4',
+    ].join('');
+
+    const manifest = shaka.test.ManifestGenerator.generate((manifest) => {
+      manifest.anyTimeline();
+      manifest.addPartialVariant((variant) => {
+        variant.addPartialStream(ContentType.VIDEO, (stream) => {
+          stream.encrypted = true;
+          stream.addDrmInfo('com.microsoft.playready', (drmInfo) => {
             drmInfo.addCencInitData(initDataBase64);
           });
         });
@@ -2742,6 +2791,176 @@ describe('HlsParser', () => {
       const audioReference = Array.from(audio.segmentIndex)[0];
       expect(audioReference.getUris())
           .toEqual(['test:/host/segment.mp4?token=1']);
+    });
+  });
+
+  describe('EXT-X-SESSION-DATA', () => {
+    it('parses value data', async () => {
+      const master = [
+        '#EXTM3U\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",VALUE="fooValue"\n',
+        '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
+        'audio',
+      ].join('');
+
+      const media = [
+        '#EXTM3U\n',
+        '#EXT-X-PLAYLIST-TYPE:VOD\n',
+        '#EXT-X-MAP:URI="init.mp4",BYTERANGE="616@0"\n',
+        '#EXTINF:5,\n',
+        '#EXT-X-BYTERANGE:121090@616\n',
+        'main.mp4',
+      ].join('');
+
+      const manifest = shaka.test.ManifestGenerator.generate((manifest) => {
+        manifest.anyTimeline();
+        manifest.addPartialVariant((variant) => {
+          variant.addPartialStream(ContentType.AUDIO, (stream) => {
+            stream.mime('audio/mp4', 'mp4a');
+          });
+        });
+      });
+
+      await testHlsParser(master, media, manifest);
+
+      const eventValue = {
+        type: 'sessiondata',
+        id: 'fooId',
+        value: 'fooValue',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue));
+    });
+
+    it('parses value data with language', async () => {
+      const master = [
+        '#EXTM3U\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",LANGUAGE="en",VALUE="fooValue"\n',
+        '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
+        'audio',
+      ].join('');
+
+      const media = [
+        '#EXTM3U\n',
+        '#EXT-X-PLAYLIST-TYPE:VOD\n',
+        '#EXT-X-MAP:URI="init.mp4",BYTERANGE="616@0"\n',
+        '#EXTINF:5,\n',
+        '#EXT-X-BYTERANGE:121090@616\n',
+        'main.mp4',
+      ].join('');
+
+      const manifest = shaka.test.ManifestGenerator.generate((manifest) => {
+        manifest.anyTimeline();
+        manifest.addPartialVariant((variant) => {
+          variant.addPartialStream(ContentType.AUDIO, (stream) => {
+            stream.mime('audio/mp4', 'mp4a');
+          });
+        });
+      });
+
+      await testHlsParser(master, media, manifest);
+
+      const eventValue = {
+        type: 'sessiondata',
+        id: 'fooId',
+        language: 'en',
+        value: 'fooValue',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue));
+    });
+
+    it('parses uri data', async () => {
+      const master = [
+        '#EXTM3U\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",URI="foo.json"\n',
+        '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
+        'audio',
+      ].join('');
+
+      const media = [
+        '#EXTM3U\n',
+        '#EXT-X-PLAYLIST-TYPE:VOD\n',
+        '#EXT-X-MAP:URI="init.mp4",BYTERANGE="616@0"\n',
+        '#EXTINF:5,\n',
+        '#EXT-X-BYTERANGE:121090@616\n',
+        'main.mp4',
+      ].join('');
+
+      const manifest = shaka.test.ManifestGenerator.generate((manifest) => {
+        manifest.anyTimeline();
+        manifest.addPartialVariant((variant) => {
+          variant.addPartialStream(ContentType.AUDIO, (stream) => {
+            stream.mime('audio/mp4', 'mp4a');
+          });
+        });
+      });
+
+      await testHlsParser(master, media, manifest);
+
+      const eventValue = {
+        type: 'sessiondata',
+        id: 'fooId',
+        uri: 'test:/foo.json',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue));
+    });
+
+    it('parses mutiple data', async () => {
+      const master = [
+        '#EXTM3U\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",LANGUAGE="en",VALUE="fooValue"\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",LANGUAGE="es",VALUE="fooValue"\n',
+        '#EXT-X-SESSION-DATA:DATA-ID="fooId",URI="foo.json"\n',
+        '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
+        'audio',
+      ].join('');
+
+      const media = [
+        '#EXTM3U\n',
+        '#EXT-X-PLAYLIST-TYPE:VOD\n',
+        '#EXT-X-MAP:URI="init.mp4",BYTERANGE="616@0"\n',
+        '#EXTINF:5,\n',
+        '#EXT-X-BYTERANGE:121090@616\n',
+        'main.mp4',
+      ].join('');
+
+      const manifest = shaka.test.ManifestGenerator.generate((manifest) => {
+        manifest.anyTimeline();
+        manifest.addPartialVariant((variant) => {
+          variant.addPartialStream(ContentType.AUDIO, (stream) => {
+            stream.mime('audio/mp4', 'mp4a');
+          });
+        });
+      });
+
+      await testHlsParser(master, media, manifest);
+
+      expect(onEventSpy).toHaveBeenCalledTimes(3);
+      const eventValue1 = {
+        type: 'sessiondata',
+        id: 'fooId',
+        language: 'en',
+        value: 'fooValue',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue1));
+      const eventValue2 = {
+        type: 'sessiondata',
+        id: 'fooId',
+        language: 'es',
+        value: 'fooValue',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue2));
+      const eventValue3 = {
+        type: 'sessiondata',
+        id: 'fooId',
+        uri: 'test:/foo.json',
+      };
+      expect(onEventSpy).toHaveBeenCalledWith(
+          jasmine.objectContaining(eventValue3));
     });
   });
 });

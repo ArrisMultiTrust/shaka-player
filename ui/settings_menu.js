@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,7 +9,9 @@ goog.provide('shaka.ui.SettingsMenu');
 
 goog.require('shaka.ui.Element');
 goog.require('shaka.ui.Enums');
+goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
+goog.require('shaka.util.FakeEvent');
 
 
 /**
@@ -44,7 +47,7 @@ shaka.ui.SettingsMenu = class extends shaka.ui.Element {
 
     /** @protected {!HTMLElement}*/
     this.icon = shaka.util.Dom.createHTMLElement('i');
-    this.icon.classList.add('material-icons');
+    this.icon.classList.add('material-icons-round');
     this.icon.textContent = iconText;
     this.button.appendChild(this.icon);
 
@@ -80,7 +83,7 @@ shaka.ui.SettingsMenu = class extends shaka.ui.Element {
     this.menu.appendChild(this.backButton);
 
     const backIcon = shaka.util.Dom.createHTMLElement('i');
-    backIcon.classList.add('material-icons');
+    backIcon.classList.add('material-icons-round');
     backIcon.textContent = shaka.ui.Enums.MaterialDesignIcons.BACK;
     this.backButton.appendChild(backIcon);
 

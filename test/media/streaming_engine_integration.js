@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -199,7 +200,6 @@ describe('StreamingEngine', () => {
         (type, periodNumber, position) => {
           const wallClockTime = Date.now() / 1000;
           const segment = generators[type].getSegment(position, wallClockTime);
-          expect(segment).not.toBeNull();
           return segment;
         },
         /* delays= */{audio: 0, video: 0, text: 0});
@@ -265,6 +265,13 @@ describe('StreamingEngine', () => {
     });
 
     it('plays at high playback rates', async () => {
+      // Experimentally, we find that playback rates above 2x in this test seem
+      // to cause decoder failures on Tizen 3.  This is out of our control, and
+      // seems to be a Tizen bug, so this test is skipped on Tizen completely.
+      if (shaka.util.Platform.isTizen()) {
+        pending('High playbackRate tests cause decoder errors on Tizen 3.');
+      }
+
       // Let's go!
       streamingEngine.switchVariant(variant);
       await streamingEngine.start();

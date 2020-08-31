@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -178,7 +179,7 @@ module.exports = (config) => {
         uncompiled: !!settings.uncompiled,
 
         // Limit which tests to run. If undefined, all tests should run.
-        specFilter: settings.filter,
+        filter: settings.filter,
 
         // Set what level of logs for the player to print.
         logLevel: SHAKA_LOG_MAP[settings.logging],
@@ -556,6 +557,17 @@ function WebDriverScreenshotMiddlewareFactory(launcher) {
     const newScreenshotPath = `${folder}/${params.name}.png-new`;
     const diffScreenshotPath = `${folder}/${params.name}.png-diff`;
 
+    // Write the full screenshot to disk.  This should be done early in case a
+    // later stage fails and we need to analyze what happened.
+    fs.mkdirSync(folder, {recursive: true});
+    fs.writeFileSync(
+        fullScreenshotPath, await fullScreenshot.getBufferAsync('image/png'));
+
+    // Write the cropped screenshot to disk next.  This is used in review
+    // changes and to update the "official" screenshot when needed.
+    fs.writeFileSync(
+        newScreenshotPath, await newScreenshot.getBufferAsync('image/png'));
+
     /** @type {!Jimp.image} */
     let oldScreenshot;
     if (!fs.existsSync(oldScreenshotPath)) {
@@ -570,14 +582,7 @@ function WebDriverScreenshotMiddlewareFactory(launcher) {
     // Initially, the image data will be raw pixels, 4 bytes per pixel.
     const diff = Jimp.diff(oldScreenshot, newScreenshot, /* threshold= */ 0);
 
-    // Write the screenshot and diff to disk.  This makes it easy to review
-    // the diff on failure or update the "official" screenshot easily when
-    // needed.
-    fs.mkdirSync(folder, {recursive: true});
-    fs.writeFileSync(
-        fullScreenshotPath, await fullScreenshot.getBufferAsync('image/png'));
-    fs.writeFileSync(
-        newScreenshotPath, await newScreenshot.getBufferAsync('image/png'));
+    // Write the diff to disk.  This is used to review when there are changes.
     fs.writeFileSync(
         diffScreenshotPath, await diff.image.getBufferAsync('image/png'));
 
@@ -610,13 +615,25 @@ function WebDriverScreenshotMiddlewareFactory(launcher) {
         return;
       }
 
+      let isSupported = false;
       const webDriverClient = getWebDriverClient(browser);
-      // TODO: Not sure how to check for this in the client's capabilities.
-      // When we add platforms to the Selenium grid which can't take
-      // screenshots, how will we know which is which from here?  If we have to
-      // take a screenshot and catch an error to find out, make sure we cache
-      // that result for the sake of performance.
-      const isSupported = !!webDriverClient;
+
+      if (webDriverClient) {
+        // Some platforms in our Selenium grid can't take screenshots.  We don't
+        // have a good way to check for this in the platform capabilities
+        // reported by Selenium, so we have to take a screenshot to find out.
+        // The result is cached for the sake of performance.
+        if (webDriverClient.canTakeScreenshot === undefined) {
+          try {
+            await getScreenshot(webDriverClient);
+            webDriverClient.canTakeScreenshot = true;
+          } catch (error) {
+            webDriverClient.canTakeScreenshot = false;
+          }
+        }
+
+        isSupported = webDriverClient.canTakeScreenshot;
+      }
 
       response.setHeader('Content-Type', 'application/json');
       response.end(JSON.stringify(isSupported));

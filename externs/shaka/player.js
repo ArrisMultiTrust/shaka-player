@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -69,6 +70,7 @@ shaka.extern.StateChange;
  *   corruptedFrames: number,
  *   estimatedBandwidth: number,
  *
+ *   completionPercent: number,
  *   loadLatency: number,
  *   manifestTimeSeconds: number,
  *   drmTimeSeconds: number,
@@ -110,6 +112,10 @@ shaka.extern.StateChange;
  * @property {number} estimatedBandwidth
  *   The current estimated network bandwidth (in bit/sec).
  *
+ * @property {number} completionPercent
+ *   This is the greatest completion percent that the user has experienced in
+ *   playback.  Also known as the "high water mark".  Is NaN when there is no
+ *   known duration, such as for livestreams.
  * @property {number} loadLatency
  *   This is the number of seconds it took for the video element to have enough
  *   data to begin playback.  This is measured from the time load() is called to
@@ -717,7 +723,8 @@ shaka.extern.ManifestConfiguration;
  *   stallThreshold: number,
  *   stallSkip: number,
  *   useNativeHlsOnSafari: boolean,
- *   inaccurateManifestTolerance: number
+ *   inaccurateManifestTolerance: number,
+ *   lowLatencyMode: boolean
  * }}
  *
  * @description
@@ -784,15 +791,18 @@ shaka.extern.ManifestConfiguration;
  *   jump in the stream skipping more content. This is helpful for lower
  *   bandwidth scenarios. Defaults to 5 if not provided.
  * @property {boolean} stallEnabled
- *   When set to <code>true</code>, the stall detector logic will run, skipping
- *   forward <code>stallSkip</code> seconds whenever the playhead stops moving
- *   for <code>stallThreshold</code> seconds.
+ *   When set to <code>true</code>, the stall detector logic will run.  If the
+ *   playhead stops moving for <code>stallThreshold</code> seconds, the player
+ *   will either seek or pause/play to resolve the stall, depending on the value
+ *   of <code>stallSkip</code>.
  * @property {number} stallThreshold
  *   The maximum number of seconds that may elapse without the playhead moving
  *   (when playback is expected) before it will be labeled as a stall.
  * @property {number} stallSkip
  *   The number of seconds that the player will skip forward when a stall has
- *   been detected.
+ *   been detected.  If 0, the player will pause and immediately play instead of
+ *   seeking.  A value of 0 is recommended and provided as default on TV
+ *   platforms (WebOS, Tizen, Chromecast, etc).
  * @property {boolean} useNativeHlsOnSafari
  *   Desktop Safari has both MediaSource and their native HLS implementation.
  *   Depending on the application's needs, it may prefer one over the other.
@@ -802,7 +812,10 @@ shaka.extern.ManifestConfiguration;
  *   The maximum difference, in seconds, between the times in the manifest and
  *   the times in the segments.  Larger values allow us to compensate for more
  *   drift (up to one segment duration).  Smaller values reduce the incidence of
- *   extra segment requests necessary to compensate for drift
+ *   extra segment requests necessary to compensate for drift.
+ * @property {boolean} lowLatencyMode
+ *  If <code>true</code>, low latency streaming mode is enabled.
+ *
  * @exportDoc
  */
 shaka.extern.StreamingConfiguration;
@@ -811,6 +824,7 @@ shaka.extern.StreamingConfiguration;
 /**
  * @typedef {{
  *   enabled: boolean,
+ *   useNetworkInformation: boolean,
  *   defaultBandwidthEstimate: number,
  *   restrictions: shaka.extern.Restrictions,
  *   switchInterval: number,
@@ -820,6 +834,9 @@ shaka.extern.StreamingConfiguration;
  *
  * @property {boolean} enabled
  *   If true, enable adaptation by the current AbrManager.  Defaults to true.
+ * @property {boolean} useNetworkInformation
+ *   If true, use Network Information API in the current AbrManager.
+ *   Defaults to true.
  * @property {number} defaultBandwidthEstimate
  *   The default bandwidth estimate to use if there is not enough data, in
  *   bit/sec.

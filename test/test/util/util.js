@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -26,6 +27,9 @@ goog.provide('shaka.test.Util');
  *   },
  *   net: {
  *     NetworkingEngine: typeof shaka.net.NetworkingEngine
+ *   },
+ *   offline: {
+ *     Storage: typeof shaka.offline.Storage
  *   },
  *   ui: {
  *     Overlay: typeof shaka.ui.Overlay,
@@ -268,7 +272,11 @@ shaka.test.Util = class {
 
       // Compare those using Jasmine's utility, which will compare the fields of
       // an object and the items of an array.
-      return jasmine.matchersUtil.equals(trimmedFirst, trimmedSecond);
+      const customEqualityTesters = [
+        shaka.test.Util.compareReferences,
+      ];
+      return jasmine.matchersUtil.equals(
+          trimmedFirst, trimmedSecond, customEqualityTesters);
     }
 
     return undefined;

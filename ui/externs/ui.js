@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -69,7 +70,8 @@ shaka.extern.UIVolumeBarColors;
  *   fadeDelay: number,
  *   doubleClickForFullscreen: boolean,
  *   enableKeyboardPlaybackControls: boolean,
- *   enableFullscreenOnRotation: boolean
+ *   enableFullscreenOnRotation: boolean,
+ *   forceLandscapeOnFullscreen: boolean
  * }}
  *
  * @property {!Array.<string>} controlPanelElements
@@ -132,6 +134,11 @@ shaka.extern.UIVolumeBarColors;
  *   Defaults to true.
  * @property {boolean} enableFullscreenOnRotation
  *   Whether or not to enter/exit fullscreen mode when the screen is rotated.
+ *   Defaults to true.
+ * @property {boolean} forceLandscapeOnFullscreen
+ *   Whether or not the device should rotate to landscape mode when the video
+ *   enters fullscreen.  Note that this behavior is based on an experimental
+ *   browser API, and may not work on all platforms.
  *   Defaults to true.
  */
 shaka.extern.UIConfiguration;

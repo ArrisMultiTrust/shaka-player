@@ -1,4 +1,5 @@
-/** @license
+/*! @license
+ * Shaka Player
  * Copyright 2016 Google LLC
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,10 +8,15 @@
 goog.provide('shaka.ui.Overlay');
 
 goog.require('goog.asserts');
+goog.require('shaka.Player');
+goog.require('shaka.log');
 goog.require('shaka.polyfill');
 goog.require('shaka.ui.Controls');
+goog.require('shaka.util.ConfigUtils');
+goog.require('shaka.util.Dom');
+goog.require('shaka.util.FakeEvent');
+goog.require('shaka.util.IDestroyable');
 goog.require('shaka.util.Platform');
-
 
 /**
  * @implements {shaka.util.IDestroyable}
@@ -199,7 +205,13 @@ shaka.ui.Overlay = class {
       doubleClickForFullscreen: true,
       enableKeyboardPlaybackControls: true,
       enableFullscreenOnRotation: true,
+      forceLandscapeOnFullscreen: true,
     };
+
+    // Check AirPlay support
+    if (window.WebKitPlaybackTargetAvailabilityEvent) {
+      config.overflowMenuButtons.push('airplay');
+    }
 
     // On mobile, by default, hide the volume slide and the small play/pause
     // button and show the big play/pause button in the center.
@@ -227,7 +239,8 @@ shaka.ui.Overlay = class {
 
       // After scanning the page for elements, fire a special "loaded" event for
       // when the load fails. This will allow the page to react to the failure.
-      shaka.ui.Overlay.dispatchLoadedEvent_('shaka-ui-load-failed');
+      shaka.ui.Overlay.dispatchLoadedEvent_('shaka-ui-load-failed',
+          shaka.ui.FailReasonCode.NO_BROWSER_SUPPORT);
       return;
     }
 
@@ -289,8 +302,17 @@ shaka.ui.Overlay = class {
           container.appendChild(currentVideo);
         }
 
-        // eslint-disable-next-line no-await-in-loop
-        await shaka.ui.Overlay.setupUIandAutoLoad_(container, currentVideo);
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          await shaka.ui.Overlay.setupUIandAutoLoad_(container, currentVideo);
+        } catch (e) {
+          // This can fail if, for example, not every player file has loaded.
+          // Ad-block is a likely cause for this sort of failure.
+          shaka.log.error('Error setting up Shaka Player', e);
+          shaka.ui.Overlay.dispatchLoadedEvent_('shaka-ui-load-failed',
+              shaka.ui.FailReasonCode.PLAYER_FAILED_TO_LOAD);
+          return;
+        }
       }
     }
 
@@ -303,13 +325,20 @@ shaka.ui.Overlay = class {
 
   /**
    * @param {string} eventName
+   * @param {shaka.ui.FailReasonCode=} reasonCode
    * @private
    */
-  static dispatchLoadedEvent_(eventName) {
+  static dispatchLoadedEvent_(eventName, reasonCode) {
     // "Event" is not constructable on IE, so we use this CustomEvent pattern.
     const uiLoadedEvent = /** @type {!CustomEvent} */(
       document.createEvent('CustomEvent'));
-    uiLoadedEvent.initCustomEvent(eventName, false, false, null);
+    let detail = null;
+    if (reasonCode != undefined) {
+      detail = {
+        'reasonCode': reasonCode,
+      };
+    }
+    uiLoadedEvent.initCustomEvent(eventName, false, false, detail);
 
     document.dispatchEvent(uiLoadedEvent);
   }
@@ -388,6 +417,17 @@ shaka.ui.TrackLabelFormat = {
   'LANGUAGE': 0,
   'ROLE': 1,
   'LANGUAGE_ROLE': 2,
+};
+
+/**
+ * Describes the possible reasons that the UI might fail to load.
+ *
+ * @enum {number}
+ * @export
+ */
+shaka.ui.FailReasonCode = {
+  'NO_BROWSER_SUPPORT': 0,
+  'PLAYER_FAILED_TO_LOAD': 1,
 };
 
 if (document.readyState == 'complete') {
