@@ -15,6 +15,7 @@ goog.require('shaka.ui.Localization');
 goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
 goog.require('shaka.util.Timer');
+goog.requireType('shaka.ui.Controls');
 
 
 /**
@@ -91,6 +92,11 @@ shaka.ui.SkipAdButton = class extends shaka.ui.Element {
         this.button_, 'click', () => {
           this.ad.skip();
         });
+
+    if (this.ad) {
+      // There was already an ad.
+      this.onAdStarted_();
+    }
   }
 
   /**

@@ -13,6 +13,7 @@ goog.require('shaka.ui.Locales');
 goog.require('shaka.ui.Localization');
 goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
+goog.requireType('shaka.ui.Controls');
 
 
 /**
@@ -71,6 +72,11 @@ shaka.ui.AdPosition = class extends shaka.ui.Element {
           this.span_.textContent = '';
           shaka.ui.Utils.setDisplay(this.container_, false);
         });
+
+    if (this.ad) {
+      // There was already an ad.
+      this.setPosition_();
+    }
   }
 
   /**

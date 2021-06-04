@@ -15,6 +15,7 @@ goog.require('shaka.ui.Localization');
 goog.require('shaka.ui.Utils');
 goog.require('shaka.util.Dom');
 goog.require('shaka.util.Timer');
+goog.requireType('shaka.ui.Controls');
 
 
 /**
@@ -70,6 +71,11 @@ shaka.ui.AdCounter = class extends shaka.ui.Element {
         this.adManager, shaka.ads.AdManager.AD_STOPPED, () => {
           this.reset_();
         });
+
+    if (this.ad) {
+      // There was already an ad.
+      this.onAdStarted_();
+    }
   }
 
   /**

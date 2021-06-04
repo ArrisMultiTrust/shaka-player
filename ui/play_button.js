@@ -13,6 +13,7 @@ goog.require('shaka.ui.Element');
 goog.require('shaka.ui.Locales');
 goog.require('shaka.ui.Localization');
 goog.require('shaka.util.Dom');
+goog.requireType('shaka.ui.Controls');
 
 
 /**
@@ -75,6 +76,12 @@ shaka.ui.PlayButton = class extends shaka.ui.Element {
         this.controls.playPausePresentation();
       }
     });
+
+    if (this.ad) {
+      // There was already an ad.
+      this.updateAriaLabel();
+      this.updateIcon();
+    }
   }
 
   /**
